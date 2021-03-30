@@ -7,10 +7,13 @@ uses
 
   FMX.DialogService,
   FMX.Dialogs,
+  FMX.Graphics,
   FMX.ListView.Types,
   FMX.TextLayout,
 
+  System.Classes,
   System.IniFiles,
+  System.NetEncoding,
   System.Types;
 
       function Nome_Mes(mes : integer;Idioma : String='PTBR'): String; Overload
@@ -22,6 +25,11 @@ uses
       procedure SetValorINI(const pSessao, pID, pValor: String);
       function GetValorINI(const pSessao, pID: String): String;
       function GetTextHeight(const D: TListItemText; const Width: single; const Text: string): Integer;
+      function ConvertValor(SValor : string):Double;
+      function ValidarValor(SValor : string):Boolean;
+      function Base64FromBitmap(Bitmap: TBitmap): string;
+      function BitmapFromBase64(const base64: string): TBitmap;
+
 
 
 implementation
@@ -228,5 +236,87 @@ begin
   end;
 end;
 
+function ConvertValor(SValor : string):Double;
+begin
+    SValor := StringReplace(SValor, ',', '', [rfReplaceAll]);
+    SValor := StringReplace(SValor, '.', '', [rfReplaceAll]);
+    SValor := StringReplace(SValor, 'R$', '', [rfReplaceAll]);
+    try
+        Result := StrToFloat(SValor)/100;
+    except
+        Result := 0;
+    end;
+
+end;
+
+function ValidarValor(SValor : string):Boolean;
+begin
+    SValor := StringReplace(SValor, ',', '', [rfReplaceAll]);
+    SValor := StringReplace(SValor, '.', '', [rfReplaceAll]);
+    SValor := StringReplace(SValor, 'R$', '', [rfReplaceAll]);
+    try
+        StrToFloat(SValor);
+        Result := True;
+    except
+        Result := False;
+    end;
+
+end;
+
+function Base64FromBitmap(Bitmap: TBitmap): string;
+var
+  Input: TBytesStream;
+  Output: TStringStream;
+  Encoding: TBase64Encoding;
+begin
+        Input := TBytesStream.Create;
+        try
+                Bitmap.SaveToStream(Input);
+                Input.Position := 0;
+                Output := TStringStream.Create('', TEncoding.ASCII);
+
+                try
+                    Encoding := TBase64Encoding.Create(0);
+                    Encoding.Encode(Input, Output);
+                    Result := Output.DataString;
+                finally
+                        Encoding.Free;
+                        Output.Free;
+                end;
+
+        finally
+                Input.Free;
+        end;
+end;
+
+function BitmapFromBase64(const base64: string): TBitmap;
+var
+  Input: TStringStream;
+  Output: TBytesStream;
+  Encoding: TBase64Encoding;
+begin
+  Input := TStringStream.Create(base64, TEncoding.ASCII);
+  try
+    Output := TBytesStream.Create;
+    try
+      Encoding := TBase64Encoding.Create(0);
+      Encoding.Decode(Input, Output);
+
+      Output.Position := 0;
+      Result := TBitmap.Create;
+      try
+        Result.LoadFromStream(Output);
+      except
+        Result.Free;
+        raise;
+      end;
+    finally
+      Encoding.DisposeOf;
+      Output.Free;
+    end;
+  finally
+    Input.Free;
+  end;
+end;
 
 end.

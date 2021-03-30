@@ -1,3 +1,11 @@
+/////////////////////////////////////////////////////////////////////////////
+{
+    Unit u99Permissions
+    Criação: 99 Coders (Heber Stein Mazutti - heber@99coders.com.br)
+    Versão: 1.1
+}
+/////////////////////////////////////////////////////////////////////////////
+
 unit u99Permissions;
 
 interface
@@ -19,6 +27,7 @@ type
         CurrentRequest : string;
         pCamera, pReadStorage, pWriteStorage : string; // Camera / Library
         pFineLocation, pCoarseLocation : string; // GPS
+        pPhoneState : string; // Phone State
 
         procedure PermissionRequestResult( Sender: TObject;
                     const APermissions: TArray<string>;
@@ -36,6 +45,10 @@ type
                         ACallBackError: TCallbackProc = nil);
         procedure Location(ACallBack: TCallbackProc = nil;
                         ACallBackError: TCallbackProc = nil);
+        procedure PhoneState(ACallBack: TCallbackProc = nil;
+                        ACallBackError: TCallbackProc = nil);
+        procedure ReadWriteFiles(ACallBack: TCallbackProc = nil;
+                                 ACallBackError: TCallbackProc = nil);
     published
         //property CameraGranted: boolean read FCameraGranted write FCameraGranted;
 end;
@@ -61,6 +74,7 @@ begin
     pWriteStorage := JStringToString(TJManifest_permission.JavaClass.WRITE_EXTERNAL_STORAGE);
     pCoarseLocation := JStringToString(TJManifest_permission.JavaClass.ACCESS_COARSE_LOCATION);
     pFineLocation := JStringToString(TJManifest_permission.JavaClass.ACCESS_FINE_LOCATION);
+    pPhoneState := JStringToString(TJManifest_permission.JavaClass.READ_PHONE_STATE);
     {$ENDIF}
 end;
 
@@ -115,6 +129,33 @@ begin
         end;
     end;
 
+    // PHONE STATE
+    if CurrentRequest = 'READ_PHONE_STATE' then
+    begin
+        if (Length(AGrantResults) = 1) and
+           (AGrantResults[0] = TPermissionStatus.Granted) then
+        begin
+            ret := true;
+
+            if Assigned(MyCallBack) then
+                MyCallBack(Self);
+        end;
+    end;
+
+    // READ WRITE FILES (READ_EXTERNAL_STORAGE + WRITE_EXTERNAL_STORAGE)
+    if CurrentRequest = 'READ_WRITE_FILES' then
+    begin
+        if (Length(AGrantResults) = 2) and
+           (AGrantResults[0] = TPermissionStatus.Granted) and
+           (AGrantResults[1] = TPermissionStatus.Granted) then
+        begin
+            ret := true;
+
+            if Assigned(MyCallBack) then
+                MyCallBack(Self);
+        end;
+    end;
+
     if NOT ret then    
     begin
         if Assigned(MyCallBackError) then
@@ -135,11 +176,35 @@ begin
     {$ENDIF}
 
     {$IFDEF IOS}
-    MyCameraAction.Execute;
+    if Assigned(MyCameraAction) then
+        MyCameraAction.Execute;
     {$ENDIF}
 
     {$IFDEF MSWINDOWS}
     TDialogService.ShowMessage('Não suportado no Windows');
+    {$ENDIF}
+end;
+
+procedure T99Permissions.ReadWriteFiles(ACallBack: TCallbackProc = nil;
+                                  ACallBackError: TCallbackProc = nil);
+begin
+    MyCallBack := ACallBack;
+    MyCallBackError := ACallBackError;
+    CurrentRequest := 'READ_WRITE_FILES';
+
+    {$IFDEF ANDROID}
+    PermissionsService.RequestPermissions([pReadStorage, pWriteStorage],
+                                           PermissionRequestResult);
+    {$ENDIF}
+
+    {$IFDEF IOS}
+    if Assigned(MyCameraAction) then
+        MyCameraAction.Execute;
+    {$ENDIF}
+
+    {$IFDEF MSWINDOWS}
+    if Assigned(ACallBack) then
+        ACallBack(Self);
     {$ENDIF}
 end;
 
@@ -156,7 +221,7 @@ begin
     {$ENDIF}
 
     {$IFDEF IOS}
-    MyPhotoLibrary.Execute;
+    ActionLibrary.Execute;
     {$ENDIF}
 
     {$IFDEF MSWINDOWS}
@@ -179,7 +244,7 @@ begin
 
     {$IFDEF IOS}
     if Assigned(MyCallBack) then
-        MyCallBack(Self);
+        ACallBack(Self);
     {$ENDIF}
 
     {$IFDEF MSWINDOWS}
@@ -187,5 +252,26 @@ begin
     {$ENDIF}
 end;
 
+procedure T99Permissions.PhoneState(ACallBack: TCallbackProc = nil;
+                                  ACallBackError: TCallbackProc = nil);
+begin
+    MyCallBack := ACallBack;
+    MyCallBackError := ACallBackError;
+    CurrentRequest := 'READ_PHONE_STATE';
+
+    {$IFDEF ANDROID}
+    PermissionsService.RequestPermissions([pPhoneState],
+                                           PermissionRequestResult);
+    {$ENDIF}
+
+    {$IFDEF IOS}
+    if Assigned(MyCallBack) then
+        ACallBack(Self);
+    {$ENDIF}
+
+    {$IFDEF MSWINDOWS}
+    TDialogService.ShowMessage('Não suportado no Windows');
+    {$ENDIF}
+end;
 
 end.
